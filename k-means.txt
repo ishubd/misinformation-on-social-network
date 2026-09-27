@@ -1,0 +1,64 @@
+1. Justification for K-Means Clustering and Text Processing
+
+K-Means clustering was selected because the core objective—identifying mistakenly recorded profiles—requires analyzing behavioral structures independently of subjective, crowdsourced labels. Unlike supervised classification which relies on an "answer key," K-Means is entirely unsupervised; it groups accounts strictly based on their mathematical similarity across visual, linguistic, and behavioral coordinates. This allows the algorithm to expose profiles whose official dataset labels contradict their actual mathematical behavior.
+
+TF-IDF (Term Frequency-Inverse Document Frequency) was selected as the text processing method because it heavily penalizes common English filler words while boosting the mathematical weight of distinct, defining vocabulary. This is essential for differentiating corporate broadcasting (which uses promotional jargon) from conversational human text. A standard Bag of Words (BOW) would merely count words, whereas TF-IDF measures linguistic importance.
+
+2. Data Features Selected (7 Primary Features)
+
+To ensure the clustering algorithm remained completely blind to the "answer key," target labels were strictly excluded from the active feature matrix. The model's intelligence was built using only 7 raw behavioral and visual features:
+
+    Behavioral View: fav_number, retweet_count, and tweet_count were selected because automated brand accounts leave distinctly different numerical footprints (e.g., high tweet volume, low favorite counts) compared to interactive human users.
+
+    Aesthetic/Color View: link_color and sidebar_color were selected to capture visual branding choices. Brands frequently use custom corporate hex codes, whereas humans often leave default Twitter themes.
+
+    Textual View: text (a random tweet) and description (the profile bio) were selected and combined to form a complete linguistic footprint for the TF-IDF algorithm to analyze.
+    
+3. Data Features Dropped (20 Features)
+
+We dropped 20 features from the active K-Means matrix to eliminate noise, prevent data leakage, and stop the algorithm from grouping by useless identifiers.
+
+    Target Leakage (The Answer Key): is_human and gender:confidence were completely dropped from the clustering matrix (X_cluster) so the algorithm was forced to group profiles blindly, without knowing their official label or human labeler confidence.
+
+    Unique Identifiers (Memorization Risk): _unit_id, name, tweet_id, and profileimage were dropped because they are unique to individual users. An algorithm cannot learn generalized behavior from a unique username.
+
+    Sparse & Unstructured Data: tweet_coord, tweet_location, and user_timezone were dropped because missing or chaotic location strings provide no reliable mathematical signal.
+
+    Irrelevant Meta-Data (Timestamps): created, tweet_created, and _last_judgment_at were dropped because a profile's creation date does not dictate whether it is a human or a brand today.
+
+    Redundant/Crowdsource Leakage: profile_yn_gold, _golden, _unit_state, profile_yn, gender_gold, gender, and profile_yn:confidence were dropped because they reflect the administrative state of the CrowdFlower platform, not the traits of the Twitter user.
+
+    Unscaled Outlier: _trusted_judgments was dropped because its massive administrative variance (spiking to 274 for a few users) distorted the Euclidean spatial distance calculations.
+    
+4. Project Execution Approach and Flow Steps
+The project was executed as an automated, unsupervised anomaly detection pipeline using the following chronological flow:
+Noise Reduction: Dropped irrelevant administrative columns, identifiers, and extreme metadata outliers (_trusted_judgments).
+
+Feature Engineering: Mathematically converted hex color strings into distinct RGB intensity columns. Applied a non-linear log transformation (np.log1p) to compress extreme Twitter engagement outliers.
+
+Normalization: Applied a StandardScaler to the RGB colors and behavioral tweet metrics to ensure massive numerical features (like tweet_count) did not mathematically overwhelm the smaller color variables.
+
+Text Vectorization: Cleaned the merged text (removing URLs and punctuation) and applied a 500-feature TF-IDF matrix to quantify the language.
+
+Matrix Isolation: Dropped all target variables to create a 100% blind, 509-dimension numerical matrix (X_cluster).
+
+Phase 1 (Clustering & Override): Evaluated optimal groupings via Silhouette scores. Overrode the automated $K=2$ suggestion (which failed to isolate brands due to a massive 2:1 human class imbalance) and manually forced K-Means to fit $K=5$, successfully establishing a distinct Brand-heavy baseline cluster.
+
+Phase 2 (Dimensionality Reduction): Projected the 509-dimensional matrix via PCA into a 2D visualization to verify spatial boundaries.
+
+Phase 3 (Anomaly Discovery): Filtered the final results to mathematically isolate profiles whose original dataset label directly contradicted the dominant behavior of their assigned cluster.
+
+5. Acquired Results
+
+The code successfully isolated exactly 4,967 mistakenly recorded profiles. By identifying the class imbalance and forcing the algorithm to $K=5$, the model successfully carved out a baseline Brand-dominated group (Cluster 0 at 60.8% Brand concentration). The 4,967 identified contradictions represent definitive dataset misinformation where officially labeled Humans possessed the exact mathematical footprint of corporate bot clusters, or stealthy Brands successfully infiltrated standard Human clusters.
+
+6. Multiple View Analysis and Amendment Suggestions
+
+Based on the visual and mathematical outputs of the code across the three primary data views, here is how the 4,967 mistaken profiles should be amended:
+
+    Text View: TF-IDF visualization proved Brands use broadcasting vocabulary ("weather", "news", "updates", "channel") while Humans use personal pronouns and emotional words ("im", "just", "love", "dont").
+
+    Color View: The RGB visualization proved Brands heavily skew toward customized color intensities for their links and sidebars to match corporate logos, while humans generally cluster around standard or default spectrums.
+    
+Suggestion to Amend Profiles:
+Instead of deleting the original data, we should add a new column called behavioral_profile to store the K-Means results. If a profile's original dataset label contradicts this new behavioral label, the account should be flagged and quarantined for review. This is much safer than blindly overwriting the data, because a real human (like a journalist or promoter) might naturally have a "bot-like" vocabulary or high tweet count. Flagging them isolates the misinformation without destroying the original crowdsourced data.
